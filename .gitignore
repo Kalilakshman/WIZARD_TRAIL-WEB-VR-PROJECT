@@ -1,0 +1,17 @@
+# Common temporary and system files
+.DS_Store
+Thumbs.db
+*.log
+
+# Project specific temporary folders
+github_pull/
+temp_clone/
+
+# Node dependencies (if any)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Git LFS (if used, but tracking files normally for now)
+# Large binary files are already in the root, but I'll track them.

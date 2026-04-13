@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Wizard's Trial – Ascend the Void</title>
+<script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+<script src="https://unpkg.com/aframe-environment-component@1.3.2/dist/aframe-environment-component.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+body { overflow:hidden; background:#000; }
+
+/* ── Start Screen ── */
+#start-screen {
+  position:fixed; inset:0; z-index:1000;
+  background:radial-gradient(ellipse at 50% 55%, #1a0040 0%, #000 70%);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  cursor:pointer; transition:opacity .6s;
+}
+#start-screen.hidden { opacity:0; pointer-events:none; }
+.s-title {
+  font-family:'Cinzel Decorative',serif; font-size:3rem; font-weight:900; letter-spacing:8px;
+  text-transform:uppercase;
+  background:linear-gradient(135deg,#ffd700,#ff44ff 50%,#00d4ff);
+  background-size:200% auto; -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  background-clip:text; animation:shine 4s linear infinite;
+  filter:drop-shadow(0 0 28px rgba(170,0,255,.8)); margin-bottom:14px;
+}
+.s-sub { font-family:'Outfit',sans-serif; font-size:.9rem; letter-spacing:5px; color:rgba(0,212,255,.65); text-transform:uppercase; }
+.s-btn {
+  margin-top:44px; font-family:'Outfit',sans-serif; font-size:.9rem; letter-spacing:5px;
+  color:rgba(255,255,255,.5); text-transform:uppercase; border:1px solid rgba(0,212,255,.2);
+  padding:13px 38px; border-radius:50px; backdrop-filter:blur(10px);
+  animation:blink-border 2s ease-in-out infinite;
+}
+@keyframes blink-border {
+  0%,100% { border-color:rgba(0,212,255,.15); box-shadow:none; }
+  50% { border-color:rgba(0,212,255,.5); box-shadow:0 0 18px rgba(0,212,255,.2); }
+}
+
+/* ── HUD ── */
+#hud { position:fixed; inset:0; pointer-events:none; z-index:200; font-family:'Outfit',sans-serif; }
+#title-block { position:absolute; top:26px; left:34px; }
+.hud-title {
+  font-family:'Cinzel Decorative',serif; font-size:1.85rem; font-weight:900; letter-spacing:5px;
+  text-transform:uppercase;
+  background:linear-gradient(135deg,#ffd700,#ff44ff 50%,#00d4ff);
+  background-size:300% auto; -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  background-clip:text; animation:shine 5s linear infinite;
+  filter:drop-shadow(0 0 14px rgba(170,0,255,.7));
+}
+.hud-sub { font-size:.68rem; font-weight:300; letter-spacing:4px; color:rgba(0,212,255,.55); text-transform:uppercase; margin-top:4px; }
+
+#progress-wrap { position:absolute; bottom:34px; left:34px; display:flex; flex-direction:column; gap:5px; }
+#prog-label { font-size:.58rem; letter-spacing:3px; color:rgba(255,255,255,.3); text-transform:uppercase; }
+#prog-bg { width:155px; height:3px; background:rgba(255,255,255,.08); border-radius:2px; overflow:hidden; }
+#prog-fill { height:100%; width:0%; background:linear-gradient(90deg,#00d4ff,#cc00ff); transition:width .25s; box-shadow:0 0 8px rgba(0,212,255,.9); }
+
+/* Crosshair */
+#xhair { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:20px; height:20px; pointer-events:none; }
+#xhair::before,#xhair::after { content:''; position:absolute; background:rgba(255,215,0,.85); border-radius:1px; }
+#xhair::before { width:12px; height:1.5px; top:50%; left:50%; transform:translate(-50%,-50%); box-shadow:0 0 5px #ffd700; }
+#xhair::after  { width:1.5px; height:12px; top:50%; left:50%; transform:translate(-50%,-50%); box-shadow:0 0 5px #ffd700; }
+
+/* Ctrl hint */
+#ctrl-hint {
+  position:absolute; bottom:32px; left:50%; transform:translateX(-50%);
+  background:rgba(8,0,20,.6); border:1px solid rgba(0,212,255,.15); border-radius:50px;
+  padding:7px 26px; color:rgba(255,255,255,.4); font-size:.68rem; letter-spacing:3px; text-transform:uppercase;
+  backdrop-filter:blur(12px); transition:opacity 1.5s;
+}
+#ctrl-hint.gone { opacity:0; }
+
+/* Explore hint */
+#explore-hint {
+  display:none; position:absolute; bottom:34px; right:34px;
+  background:rgba(8,0,20,.65); border:1px solid rgba(255,200,0,.25); border-radius:14px;
+  padding:13px 20px; color:rgba(255,220,100,.8); font-size:.7rem; letter-spacing:3px;
+  text-transform:uppercase; backdrop-filter:blur(14px); line-height:1.9;
+}
+
+/* Banner */
+#banner { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; opacity:0; transition:opacity .7s; }
+#banner.show { opacity:1; }
+.b-title {
+  font-family:'Cinzel Decorative',serif; font-size:2.5rem;
+  background:linear-gradient(90deg,#ffd700,#ff00ff);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  filter:drop-shadow(0 0 35px rgba(255,0,255,.9));
+}
+.b-sub { margin-top:10px; font-size:.82rem; letter-spacing:5px; color:rgba(255,255,255,.6); text-transform:uppercase; }
+
+/* Flash */
+#flash { position:fixed; inset:0; z-index:9999; background:radial-gradient(ellipse,#cc00ff 0%,#220044 55%,#000 100%); opacity:0; pointer-events:none; transition:opacity .5s; }
+
+@keyframes shine { to { background-position:300% center; } }
+</style>
+</head>
+<body>
+
+<div id="start-screen">
+  <div class="s-title">The Wizard's Trial</div>
+  <div class="s-sub">Ascend the Void &bull; Enter the Portal</div>
+  <div class="s-btn">Click to Begin</div>
+</div>
+
+<div id="flash"></div>
+
+<div id="hud">
+  <div id="title-block">
+    <div class="hud-title">The Wizard's Trial</div>
+    <div class="hud-sub" id="hud-sub">Ascend &bull; Enter &bull; Discover</div>
+  </div>
+  <div id="xhair"></div>
+  <div id="progress-wrap">
+    <div id="prog-label">Ascent Progress</div>
+    <div id="prog-bg"><div id="prog-fill"></div></div>
+  </div>
+  <div id="ctrl-hint">W A S D / Arrows – Move &nbsp;|&nbsp; Space – Jump &nbsp;|&nbsp; Mouse – Look</div>
+  <div id="explore-hint">✦ Fantasy Castle ✦<br><span style="color:rgba(255,255,255,.35);font-size:.62rem;">Walk freely and explore</span></div>
+  <div id="banner">
+    <div class="b-title">✦ You Entered the Portal ✦</div>
+    <div class="b-sub">The Fantasy Castle Awaits</div>
+  </div>
+</div>
+
+<!-- ════════════════ A-FRAME ════════════════ -->
+<a-scene
+  id="scene"
+  renderer="antialias:true; colorManagement:true; physicallyCorrectLights:true; exposure:1.2; toneMapping:ACESFilmic;"
+  fog="type:exponential; color:#05010e; density:0.012;"
+  loading-screen="enabled:false"
+  vr-mode-ui="enabled:false"
+>
+  <!-- Castle GLB is preloaded in assets but NOT in the scene.
+       It will be dynamically added on portal entry. -->
+  <a-assets timeout="20000">
+    <a-asset-item id="castle-glb" src="free_-_skybox_fairy_castle_night"></a-asset-item>
+  </a-assets>
+
+  <!-- ─── Void starfield ─── -->
+  <a-entity id="void-env">
+    <a-entity environment="preset:starry; ground:none; fog:0; dressing:none; grid:none; numStars:2500;"></a-entity>
+  </a-entity>
+
+  <!-- ─── Void lights ─── -->
+  <a-entity id="void-lights">
+    <a-light type="ambient"     color="#150030" intensity="0.9"></a-light>
+    <a-light type="directional" color="#2200ff" intensity="0.5" position="-10 30 20"></a-light>
+    <a-light type="point" id="portal-glow" color="#cc00ff" intensity="3" distance="120" position="0 30 -30"></a-light>
+    <a-light type="point"       color="#00d4ff" intensity="2" distance="60" position="10 10 5"></a-light>
+  </a-entity>
+
+  <!-- ─── Player Rig ─── -->
+  <a-entity id="rig" player-ctrl position="0 2 8">
+    <a-entity id="cam" camera position="0 1.65 0"></a-entity>
+  </a-entity>
+
+  <!-- ─── Start Platform ─── -->
+  <a-entity id="plat"
+    geometry="primitive:cylinder; radius:9; height:.7; segmentsRadial:48"
+    material="color:#0d001f; roughness:.2; metalness:.85; emissive:#2a0060; emissiveIntensity:.3"
+    position="0 .35 8" shadow="cast:true; receive:true">
+  </a-entity>
+  <a-entity
+    geometry="primitive:torus; radius:9; radiusTubular:.07; segmentsTubular:80"
+    material="color:#cc00ff; emissive:#cc00ff; emissiveIntensity:9"
+    position="0 .73 8"
+    animation="property:rotation; to:0 360 0; dur:15000; easing:linear; loop:true">
+  </a-entity>
+  <a-light type="point" color="#aa00ff" intensity="2" distance="18" position="0 3 8"></a-light>
+
+  <!-- ─── Staircase (JS built) ─── -->
+  <a-entity id="staircase"></a-entity>
+
+  <!-- ─── Portal (JS positioned) ─── -->
+  <a-entity id="portal-wrap">
+    <!-- Castle preview (tiny model behind portal face) -->
+    <a-entity id="portal-preview"
+      gltf-model="#castle-glb"
+      position="0 -5 -20"
+      scale="3 3 3"
+      rotation="0 180 0">
+    </a-entity>
+    <!-- Warm lit for preview -->
+    <a-light type="ambient" color="#f0d8b0" intensity="8" position="0 0 -10"></a-light>
+
+    <!-- Ring A -->
+    <a-entity geometry="primitive:torus; radius:6.2; radiusTubular:.16; segmentsTubular:128"
+      material="color:#ff00cc; emissive:#ff00cc; emissiveIntensity:10"
+      animation="property:rotation; to:0 360 0; dur:3600; easing:linear; loop:true"></a-entity>
+    <!-- Ring B -->
+    <a-entity geometry="primitive:torus; radius:6.2; radiusTubular:.11; segmentsTubular:128"
+      material="color:#00d4ff; emissive:#00d4ff; emissiveIntensity:8"
+      animation="property:rotation; to:360 0 360; dur:5200; easing:linear; loop:true"></a-entity>
+    <!-- Inner halo -->
+    <a-entity geometry="primitive:torus; radius:3.6; radiusTubular:.055"
+      material="color:#ffffff; emissive:#ffffff; emissiveIntensity:16"
+      animation="property:rotation; to:0 0 360; dur:2200; easing:linear; loop:true"></a-entity>
+    <!-- Face (transparent — castle shows through) -->
+    <a-entity id="portal-face"
+      geometry="primitive:circle; radius:5.9; segments:80"
+      material="color:#9911dd; emissive:#6600aa; emissiveIntensity:2; opacity:0.12; transparent:true; side:front; depthWrite:false"
+      animation="property:material.opacity; from:.06; to:.2; dir:alternate; dur:1800; easing:easeInOutSine; loop:true">
+    </a-entity>
+    <a-light type="point" color="#cc00ff" intensity="5" distance="40"></a-light>
+    <!-- Landing pad -->
+    <a-entity id="portal-pad"
+      geometry="primitive:cylinder; radius:7.5; height:.5; segmentsRadial:32"
+      material="color:#0e0028; roughness:.2; metalness:.9; emissive:#440099; emissiveIntensity:.3"
+      position="0 -8.5 0">
+    </a-entity>
+    <!-- Rune orbs (JS) -->
+    <a-entity id="runes"></a-entity>
+  </a-entity>
+
+  <!-- ─── Castle world container (empty at start, filled by JS after portal) ─── -->
+  <a-entity id="castle-env"></a-entity>
+
+</a-scene>
+
+<script>
+'use strict';
+
+/* ══════════════════════════════════════════════════════════
+   MOUSE LOOK  — pure JS, no look-controls dependency
+══════════════════════════════════════════════════════════ */
+let YAW = 0, PITCH = 0, LOCKED = false;
+
+document.addEventListener('pointerlockchange', () => { LOCKED = !!document.pointerLockElement; });
+document.addEventListener('mousemove', e => {
+  if (!LOCKED) return;
+  YAW   -= e.movementX * 0.0022;
+  PITCH  = Math.max(-1.4, Math.min(1.4, PITCH - e.movementY * 0.0022));
+  const c = document.querySelector('#cam');
+  if (c) c.object3D.rotation.set(PITCH, YAW, 0, 'YXZ');
+});
+
+function lockPointer () {
+  const canvas = document.querySelector('a-scene canvas');
+  if (canvas) canvas.requestPointerLock();
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   PLAYER CONTROLLER  — WASD + Arrows + Space, pure JS
+══════════════════════════════════════════════════════════ */
+AFRAME.registerComponent('player-ctrl', {
+  init () {
+    this.vel  = new THREE.Vector3();
+    this.onGnd= false;
+    this.done = false;
+    this.k    = {};
+    const h   = e => { this.k[e.code] = (e.type === 'keydown'); };
+    window.addEventListener('keydown', h);
+    window.addEventListener('keyup',   h);
+    this._pp  = new THREE.Vector3();
+  },
+
+  tick (_, dt) {
+    if (dt > 130 || dt < 1) return;
+    const t   = dt / 1000;
+    const pos = this.el.object3D.position;
+
+    // Direction from YAW
+    const sY = Math.sin(YAW), cY = Math.cos(YAW);
+    const fX  = -sY, fZ = -cY;   // forward
+    const rX  =  cY, rZ = -sY;   // right
+
+    // Input
+    let mx = 0, mz = 0;
+    if (this.k.KeyW || this.k.ArrowUp)    mz = -1;
+    if (this.k.KeyS || this.k.ArrowDown)  mz =  1;
+    if (this.k.KeyA || this.k.ArrowLeft)  mx = -1;
+    if (this.k.KeyD || this.k.ArrowRight) mx =  1;
+
+    if (mx || mz) {
+      const l = Math.sqrt(mx*mx+mz*mz); mx/=l; mz/=l;
+      const SPEED = 8;
+      const tvx = (fX*(-mz)+rX*mx)*SPEED, tvz = (fZ*(-mz)+rZ*mx)*SPEED;
+      const acc = Math.min(1, t*13);
+      this.vel.x += (tvx-this.vel.x)*acc;
+      this.vel.z += (tvz-this.vel.z)*acc;
+    } else {
+      const dec = 1-Math.min(1,t*16);
+      this.vel.x *= dec; this.vel.z *= dec;
+    }
+
+    // Jump
+    if (this.k.Space && this.onGnd) { this.vel.y = 7.5; this.onGnd = false; }
+
+    // Gravity
+    if (!this.onGnd) this.vel.y -= 22*t;
+    else             this.vel.y  = Math.max(0, this.vel.y);
+
+    // Move
+    pos.x += this.vel.x*t;
+    pos.y += this.vel.y*t;
+    pos.z += this.vel.z*t;
+
+    // Collision / step-up
+    const STEP = 0.68;
+    this.onGnd = false;
+    let highY  = -Infinity;
+    for (const s of (window.SOLIDS||[])) {
+      if (pos.x>s.x0&&pos.x<s.x1&&pos.z>s.z0&&pos.z<s.z1) {
+        const top=s.topY, feet=pos.y;
+        if (feet>=top-0.08&&feet<top+STEP && top>highY) highY=top;
+      }
+    }
+    if (highY > -Infinity) { pos.y=Math.max(pos.y,highY); this.vel.y=Math.max(0,this.vel.y); this.onGnd=true; }
+    if (pos.y < -20) { pos.y=-20; this.vel.y=0; }
+
+    // Portal trigger
+    if (!this.done) {
+      const pf = document.querySelector('#portal-face');
+      if (pf) {
+        pf.object3D.getWorldPosition(this._pp);
+        if (pos.distanceTo(this._pp) < 6.5) { this.done=true; doPortalTransition(); }
+      }
+    }
+
+    // Progress bar
+    const fill = document.querySelector('#prog-fill');
+    if (fill) fill.style.width = Math.min(100, Math.max(0, pos.y/(window.STAIR_TOP||25)*100))+'%';
+  }
+});
+
+
+/* ══════════════════════════════════════════════════════════
+   PORTAL TRANSITION
+   Dynamically injects the castle GLB into the scene ONLY
+   after the player walks through — no pre-rendering leakage.
+══════════════════════════════════════════════════════════ */
+function doPortalTransition () {
+  const flash = document.querySelector('#flash');
+  const rig   = document.querySelector('#rig');
+  flash.style.opacity = '1';
+
+  setTimeout(() => {
+
+    /* 1. Hide the void */
+    document.querySelector('#void-env').setAttribute('visible','false');
+    document.querySelector('#void-lights').setAttribute('visible','false');
+    document.querySelector('#portal-wrap').setAttribute('visible','false');
+    document.querySelector('#staircase').setAttribute('visible','false');
+    document.querySelector('#plat').setAttribute('visible','false');
+
+    /* 2. Build the castle environment dynamically */
+    const env = document.querySelector('#castle-env');
+
+    // Blue sky dome
+    const sky = document.createElement('a-sky');
+    sky.setAttribute('color', '#5aabff');
+    sky.setAttribute('radius', '5000');
+    env.appendChild(sky);
+
+    // The castle model
+    const castle = document.createElement('a-entity');
+    castle.setAttribute('id', 'castle-model');
+    castle.setAttribute('gltf-model', '#castle-glb');
+    castle.setAttribute('position', '0 0 0');
+    castle.setAttribute('scale', '1 1 1'); // auto-fit sets real scale
+    env.appendChild(castle);
+
+    // Lights
+    const addLight = (type, color, intensity, extra='') => {
+      const l = document.createElement('a-light');
+      l.setAttribute('type', type);
+      l.setAttribute('color', color);
+      l.setAttribute('intensity', intensity);
+      if (extra) extra.split(';').forEach(pair => {
+        const [k,v] = pair.trim().split(':');
+        if (k&&v) l.setAttribute(k.trim(), v.trim());
+      });
+      env.appendChild(l);
+    };
+    addLight('ambient',     '#f0ddc0', '4');
+    addLight('directional', '#fff5cc', '5', 'position:20 50 20; cast-shadow:true');
+    addLight('directional', '#aaccff', '2', 'position:-15 25 -20');
+    addLight('hemisphere',  '#d0e8ff', '2.5', 'ground-color:#a08860');
+    addLight('point',       '#ff9940', '4', 'distance:60; position:20 8 10');
+    addLight('point',       '#ff8820', '4', 'distance:60; position:-20 8 -10');
+    addLight('point',       '#ffb050', '3', 'distance:70; position:0 12 -30');
+
+    // Invisible ground
+    const ground = document.createElement('a-entity');
+    ground.setAttribute('geometry', 'primitive:plane; width:5000; height:5000');
+    ground.setAttribute('material', 'visible:false');
+    ground.setAttribute('rotation', '-90 0 0');
+    env.appendChild(ground);
+
+    /* 3. After model loads: DoubleSide + auto-fit + place player */
+    castle.addEventListener('model-loaded', () => {
+      // Set ALL materials to DoubleSide
+      castle.object3D.traverse(node => {
+        if (!node.isMesh) return;
+        const mats = Array.isArray(node.material) ? node.material : [node.material];
+        mats.forEach(m => { m.side = THREE.DoubleSide; m.needsUpdate = true; });
+      });
+
+      // Auto-fit: scale castle so it's 120 units wide
+      const box    = new THREE.Box3().setFromObject(castle.object3D);
+      const size   = new THREE.Vector3(); box.getSize(size);
+      const center = new THREE.Vector3(); box.getCenter(center);
+      const longest = Math.max(size.x, size.y, size.z) || 1;
+      const sf      = 120 / longest; // scale factor
+
+      castle.object3D.scale.setScalar(sf);
+      castle.object3D.position.set(
+        -center.x * sf,
+        -center.y * sf,
+        -center.z * sf
+      );
+
+      // Floor Y in world space
+      const floorY   = (box.min.y - center.y) * sf;
+      const spawnY   = floorY + 0.1;
+
+      console.log('[castle] size:', size, 'sf:', sf, 'floorY:', floorY);
+
+      // Move player to castle ground
+      rig.setAttribute('position', `0 ${spawnY} 0`);
+      PITCH = 0; YAW = 0;
+      const cam = document.querySelector('#cam');
+      if (cam) cam.object3D.rotation.set(0, 0, 0, 'YXZ');
+
+      // Ground solid
+      window.SOLIDS = [{ x0:-2000, x1:2000, z0:-2000, z1:2000, topY: floorY }];
+    });
+
+    /* 4. Scene atmosphere */
+    document.querySelector('#scene').setAttribute('fog','type:exponential; density:0.003; color:#c0dcff;');
+
+    /* 5. HUD swap */
+    document.querySelector('#hud-sub').textContent = 'Fantasy Castle — Explore Freely';
+    document.querySelector('#progress-wrap').style.display = 'none';
+    document.querySelector('#explore-hint').style.display  = 'block';
+    document.querySelector('#ctrl-hint')?.classList.add('gone');
+
+    /* 6. Banner */
+    const banner = document.querySelector('#banner');
+    banner.classList.add('show');
+    setTimeout(()=>{ flash.style.opacity='0'; }, 600);
+    setTimeout(()=>{ banner.classList.remove('show'); }, 4500);
+
+  }, 520);
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   SCENE BUILDER  — staircase + portal + decorations
+══════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+
+  /* Start screen */
+  document.querySelector('#start-screen').addEventListener('click', () => {
+    lockPointer();
+    document.querySelector('#start-screen').classList.add('hidden');
+    setTimeout(()=>document.querySelector('#ctrl-hint').classList.add('gone'), 6000);
+  });
+  document.querySelector('#scene').addEventListener('click', lockPointer);
+
+  window.SOLIDS = [];
+
+  /* ── Linear staircase ── */
+  const staircase = document.querySelector('#staircase');
+  const NUM = 30, SW = 6.5, SD = 2.2, SH = 0.32, RISE = 0.45, SZ0 = 4.0, SX = 0;
+  const PAL = [
+    { c:'#00d4ff', e:'#003d5c', lit:'#00d4ff' },
+    { c:'#aa55ff', e:'#2a006e', lit:'#cc88ff' },
+    { c:'#00ffcc', e:'#004d3b', lit:'#00ffcc' },
+  ];
+
+  let prevTopY = 0.7;
+  for (let i = 0; i < NUM; i++) {
+    const pal = PAL[i % PAL.length];
+    const cy  = prevTopY + RISE + SH/2;
+    const cz  = SZ0 - i*SD - SD/2;
+    prevTopY  = cy + SH/2;
+
+    const slab = document.createElement('a-entity');
+    slab.setAttribute('geometry',`primitive:box; width:${SW}; height:${SH}; depth:${SD}`);
+    slab.setAttribute('material',`color:${pal.c}; emissive:${pal.e}; emissiveIntensity:4; opacity:.65; transparent:true; roughness:0; metalness:.6`);
+    slab.setAttribute('position',`${SX} ${cy.toFixed(3)} ${cz.toFixed(3)}`);
+    slab.setAttribute('shadow','cast:true; receive:true');
+    staircase.appendChild(slab);
+
+    if (i%5===0) {
+      const lt = document.createElement('a-light');
+      lt.setAttribute('type','point'); lt.setAttribute('color',pal.lit);
+      lt.setAttribute('intensity','.6'); lt.setAttribute('distance','6');
+      lt.setAttribute('position',`${SX} ${(cy+1).toFixed(2)} ${cz.toFixed(2)}`);
+      staircase.appendChild(lt);
+    }
+
+    if (i%7===0) {
+      [-1,1].forEach(side=>{
+        const px=SX+side*(SW/2+0.45);
+        const pillar=document.createElement('a-entity');
+        pillar.setAttribute('geometry','primitive:cylinder; radius:.11; height:2.6; segmentsRadial:6');
+        pillar.setAttribute('material',`color:${pal.c}; emissive:${pal.c}; emissiveIntensity:5; opacity:.55; transparent:true`);
+        pillar.setAttribute('position',`${px.toFixed(2)} ${(cy+1.3).toFixed(2)} ${cz.toFixed(2)}`);
+        staircase.appendChild(pillar);
+        const orb=document.createElement('a-entity');
+        orb.setAttribute('geometry','primitive:sphere; radius:.2');
+        orb.setAttribute('material',`color:${pal.c}; emissive:${pal.c}; emissiveIntensity:14`);
+        orb.setAttribute('position',`${px.toFixed(2)} ${(cy+2.7).toFixed(2)} ${cz.toFixed(2)}`);
+        orb.setAttribute('animation',`property:position; from:${px.toFixed(2)} ${(cy+2.7).toFixed(2)} ${cz.toFixed(2)}; to:${px.toFixed(2)} ${(cy+3.25).toFixed(2)} ${cz.toFixed(2)}; dir:alternate; dur:${1900+i*80}; easing:easeInOutSine; loop:true`);
+        staircase.appendChild(orb);
+      });
+    }
+
+    window.SOLIDS.push({ x0:SX-SW/2-.3, x1:SX+SW/2+.3, z0:cz-SD/2-.3, z1:cz+SD/2+.3, topY:cy+SH/2 });
+  }
+
+  window.SOLIDS.push({ x0:-9, x1:9, z0:-1, z1:17, topY:0.7 });
+  window.STAIR_TOP = prevTopY;
+
+  /* ── Floating debris ── */
+  for (let i=0;i<28;i++){
+    const frac=i/28, dz=SZ0-frac*NUM*SD+(Math.random()-.5)*5;
+    const dy=frac*NUM*RISE*1.5+Math.random()*2.5+1, dx=SX+(Math.random()-.5)*10;
+    const col=PAL[i%PAL.length].c;
+    const d=document.createElement('a-entity');
+    d.setAttribute('geometry','primitive:tetrahedron; radius:.08');
+    d.setAttribute('material',`color:${col}; emissive:${col}; emissiveIntensity:10; opacity:.7; transparent:true`);
+    d.setAttribute('position',`${dx.toFixed(2)} ${dy.toFixed(2)} ${dz.toFixed(2)}`);
+    d.setAttribute('animation__s',`property:rotation; to:${Math.random()*360} ${Math.random()*360} ${Math.random()*360}; dur:${3500+Math.random()*3500}; easing:linear; loop:true`);
+    d.setAttribute('animation__f',`property:position; from:${dx.toFixed(2)} ${dy.toFixed(2)} ${dz.toFixed(2)}; to:${dx.toFixed(2)} ${(dy+.8).toFixed(2)} ${dz.toFixed(2)}; dir:alternate; dur:${2800+Math.random()*2000}; easing:easeInOutSine; loop:true`);
+    staircase.appendChild(d);
+  }
+
+  /* ── Portal ── */
+  const lastZ  = SZ0-(NUM-1)*SD-SD/2;
+  const lastY  = 0.7+(NUM-1)*RISE+SH/2;
+  const portalY= lastY+9;
+  document.querySelector('#portal-wrap').setAttribute('position',`${SX} ${portalY.toFixed(2)} ${lastZ.toFixed(2)}`);
+  document.querySelector('#portal-glow').setAttribute('position',`${SX} ${(portalY+2).toFixed(2)} ${lastZ.toFixed(2)}`);
+
+  window.SOLIDS.push({ x0:SX-7.5, x1:SX+7.5, z0:lastZ-7.5, z1:lastZ+7.5, topY:portalY-8.5+0.5 });
+
+  /* ── Rune orbs ── */
+  const runes=document.querySelector('#runes');
+  const RC=['#ffd700','#ff44ff','#00ffcc','#ffffff','#ff8800','#4488ff'];
+  for(let i=0;i<12;i++){
+    const a=(i/12)*Math.PI*2, rr=10, rx=Math.cos(a)*rr, rz=Math.sin(a)*rr, ry=Math.sin(a*2.5)*3;
+    const col=RC[i%RC.length];
+    const o=document.createElement('a-entity');
+    o.setAttribute('geometry','primitive:sphere; radius:.21; segmentsWidth:6; segmentsHeight:4');
+    o.setAttribute('material',`color:${col}; emissive:${col}; emissiveIntensity:14`);
+    o.setAttribute('position',`${rx.toFixed(2)} ${ry.toFixed(2)} ${rz.toFixed(2)}`);
+    o.setAttribute('animation__b',`property:position; from:${rx.toFixed(2)} ${ry.toFixed(2)} ${rz.toFixed(2)}; to:${rx.toFixed(2)} ${(ry+1.6).toFixed(2)} ${rz.toFixed(2)}; dir:alternate; dur:${1900+i*140}; easing:easeInOutSine; loop:true`);
+    o.setAttribute('light',`type:point; intensity:.45; distance:5; color:${col}`);
+    runes.appendChild(o);
+  }
+});
+</script>
+</body>
+</html>
